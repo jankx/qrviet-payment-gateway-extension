@@ -176,6 +176,8 @@ class QrVietGateway extends AbstractGateway
             ];
         }
 
+        $this->persistQrMeta($transactionId, $response);
+
         $qrLink = (string) ($response['qrLink'] ?? ($response['link'] ?? ''));
 
         return [
@@ -700,6 +702,26 @@ class QrVietGateway extends AbstractGateway
         $transaction = new Transaction((int) $transactionId);
         if ($transaction->getId()) {
             $transaction->setTransactionId($orderId);
+        }
+    }
+
+    protected function persistQrMeta(string $transactionId, array $response): void
+    {
+        if (!is_numeric($transactionId) || (int) $transactionId <= 0) {
+            return;
+        }
+
+        $transaction = new Transaction((int) $transactionId);
+        if (!$transaction->getId()) {
+            return;
+        }
+
+        $qrLink = (string) ($response['qrLink'] ?? ($response['link'] ?? ''));
+        if ($qrLink !== '') {
+            $transaction->updateMeta('_qr_image', $qrLink);
+        }
+        if (isset($response['qrCode'])) {
+            $transaction->updateMeta('_qr_code', (string) $response['qrCode']);
         }
     }
 

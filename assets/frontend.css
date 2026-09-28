@@ -1,0 +1,64 @@
+.jankx-od-card--qrviet {
+    border-color: var(--jankx-accent-color, #00b5f1);
+}
+
+.jankx-qrviet-content {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    align-items: flex-start;
+    padding: 16px;
+}
+
+.jankx-qrviet-image {
+    flex: 0 0 280px;
+    max-width: 100%;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.jankx-qrviet-image img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+}
+
+.jankx-qrviet-info {
+    flex: 1 1 220px;
+    min-width: 200px;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.jankx-qrviet-info p {
+    margin: 0 0 6px;
+}
+
+.jankx-qrviet-amount {
+    color: var(--jankx-accent-color, #00b5f1);
+    font-weight: 700;
+    font-size: 18px;
+}
+
+.jankx-qrviet-info .description {
+    color: #6b7280;
+    font-size: 13px;
+}
+
+@media (max-width: 640px) {
+    .jankx-qrviet-content {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .jankx-qrviet-image {
+        flex-basis: auto;
+        width: 240px;
+        max-width: 100%;
+    }
+}

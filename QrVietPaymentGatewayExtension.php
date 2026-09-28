@@ -4,6 +4,7 @@ namespace Jankx\Extensions\QrViet;
 use Jankx\Extensions\AbstractExtension;
 use Jankx\Extensions\QrViet\Gateways\QrVietGateway;
 use Jankx\Extensions\PaymentSystem\Gateways\GatewayManager;
+use Jankx\Extensions\PaymentSystem\Models\Transaction;
 
 /**
  * QR Viet Payment Gateway Extension.
@@ -73,6 +74,10 @@ class QrVietPaymentGatewayExtension extends AbstractExtension
         add_action('admin_init', [$this, 'registerGatewaySettings']);
 
         add_action('rest_api_init', [$this, 'registerWebhookRoutes']);
+
+        add_action('wp_enqueue_scripts', [$this, 'enqueueAssets']);
+
+        add_filter('jankx/ecommerce/order_detail/after_payment_info', [$this, 'renderOrderDetailQr'], 20, 2);
     }
 
     public function registerGatewaySettings(): void
@@ -155,6 +160,90 @@ class QrVietPaymentGatewayExtension extends AbstractExtension
             'sandbox_terminal_code'=> '',
             'webhook_token'        => '',
         ]);
+    }
+
+    /**
+     * Load the QR stylesheet only on the account (order detail) pages.
+     */
+    public function enqueueAssets(): void
+    {
+        $requestUri = (string) ($_SERVER['REQUEST_URI'] ?? '');
+        if (strpos($requestUri, '/tai-khoan-cua-toi/') === false) {
+            return;
+        }
+
+        wp_enqueue_style(
+            'jankx-qrviet',
+            trailingslashit($this->get_extension_url()) . 'assets/frontend.css',
+            [],
+            '1.0.0'
+        );
+    }
+
+    /**
+     * Render the dynamic VietQR (from the API-generated transaction) on the
+     * order detail page so the customer can scan it to pay.
+     *
+     * @param string $content Existing output appended by another extension.
+     * @param mixed  $order   The Jankx order being rendered.
+     */
+    public function renderOrderDetailQr(string $content, $order): string
+    {
+        $orderClass = 'Jankx\Extensions\Ecommerce\Order\Order';
+        if (!class_exists($orderClass) || !($order instanceof $orderClass)) {
+            return $content;
+        }
+
+        if ($order->getPaymentMethod() !== 'qrviet') {
+            return $content;
+        }
+
+        $status = $order->getStatus();
+        if (!in_array($status, [$orderClass::STATUS_PENDING, $orderClass::STATUS_PROCESSING], true)) {
+            return $content;
+        }
+
+        $transactionId = $order->getPaymentTransactionId();
+        if (!$transactionId) {
+            return $content;
+        }
+
+        $transaction = new Transaction((int) $transactionId);
+        if (!$transaction->getId()) {
+            return $content;
+        }
+
+        $qrImage = $transaction->getMeta('_qr_image');
+        if ($qrImage === '') {
+            return $content;
+        }
+
+        $orderNumber = $order->getOrderNumber();
+        $amount = number_format((int) $order->getTotal(), 0, ',', '.') . ' ₫';
+        $qrCode = $transaction->getMeta('_qr_code');
+
+        $output = '<div class="jankx-od-card jankx-od-card--qrviet">';
+        $output .= '<div class="jankx-od-card-head">';
+        $output .= '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="8" height="8" rx="1"/><rect x="14" y="2" width="8" height="8" rx="1"/><rect x="2" y="14" width="8" height="8" rx="1"/><rect x="14" y="14" width="4" height="4" rx="0.5"/><line x1="22" y1="14" x2="22" y2="22"/><line x1="14" y1="22" x2="22" y2="22"/></svg>';
+        $output .= '<h3 class="jankx-od-card-title">' . esc_html__('Quét mã QR để thanh toán', 'jankx') . '</h3>';
+        $output .= '</div>';
+        $output .= '<div class="jankx-qrviet-content">';
+        $output .= '<div class="jankx-qrviet-image">';
+        $output .= '<img src="' . esc_url($qrImage) . '" alt="VietQR - ' . esc_attr($orderNumber) . '" width="280" height="280" loading="lazy">';
+        $output .= '</div>';
+        $output .= '<div class="jankx-qrviet-info">';
+        $output .= '<p><strong>' . esc_html__('Đơn hàng:', 'jankx') . '</strong> ' . esc_html($orderNumber) . '</p>';
+        $output .= '<p><strong>' . esc_html__('Số tiền:', 'jankx') . '</strong> <span class="jankx-qrviet-amount">' . esc_html($amount) . '</span></p>';
+        if ($qrCode !== '') {
+            $output .= '<p><strong>' . esc_html__('Mã giao dịch:', 'jankx') . '</strong> <code>' . esc_html($qrCode) . '</code></p>';
+        }
+        $output .= '<p class="description">' . esc_html__('Mở ứng dụng ngân hàng → Quét mã QR → Xác nhận thanh toán.', 'jankx') . '</p>';
+        $output .= '<p class="description">' . esc_html__('Sau khi thanh toán, trạng thái đơn hàng sẽ tự động cập nhật. Bạn có thể tải lại trang để kiểm tra.', 'jankx') . '</p>';
+        $output .= '</div>';
+        $output .= '</div>';
+        $output .= '</div>';
+
+        return $content . $output;
     }
 
     protected function branchConfig(): array
