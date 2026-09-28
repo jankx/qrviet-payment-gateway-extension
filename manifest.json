@@ -1,0 +1,16 @@
+{
+    "name": "QR Viet Payment Gateway",
+    "description": "QR Viet (VietQR Host2Host) payment gateway for the payment-system extension. Generates a dynamic VietQR code the customer scans from their banking app and reconciles the result via the VietQR check-order API and the Transaction Sync webhook.",
+    "version": "1.0.0",
+    "author": "Jankx",
+    "extension_id": "qrviet-payment-gateway",
+    "caller": {
+        "file": "QrVietPaymentGatewayExtension.php",
+        "class": "Jankx\\Extensions\\QrViet\\QrVietPaymentGatewayExtension"
+    },
+    "requirements": {
+        "php": ">=8.0"
+    },
+    "context": ["admin", "frontend", "rest", "ajax"],
+    "auto_activate": true
+}

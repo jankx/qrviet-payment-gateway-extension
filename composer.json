@@ -1,0 +1,26 @@
+{
+    "name": "jankx/qrviet-payment-gateway",
+    "description": "QR Viet (VietQR) Host2Host payment gateway extension for Jankx Payment System",
+    "type": "wordpress-extension",
+    "require-dev": {
+        "phpunit/phpunit": "^9.5",
+        "brain/monkey": "^2.6",
+        "mockery/mockery": "^1.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Jankx\\Extensions\\QrViet\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Jankx\\Extensions\\QrViet\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "vendor-dir": "libs",
+        "allow-plugins": {
+            "php-http/discovery": false
+        }
+    }
+}
