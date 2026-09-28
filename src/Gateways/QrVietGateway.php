@@ -67,6 +67,10 @@ class QrVietGateway extends AbstractGateway
 
     protected $tokenExpiresAt = 0;
 
+    protected $tokenError = '';
+
+    protected $tokenRaw = [];
+
     public function getName(): string
     {
         return $this->displayName;
@@ -142,6 +146,10 @@ class QrVietGateway extends AbstractGateway
                 'status'  => 'failed',
                 'message' => __('Could not authenticate with the VietQR API.', 'jankx'),
                 'code'    => 'AUTH_FAILED',
+                'raw'     => [
+                    'detail'   => $this->tokenError,
+                    'response' => $this->tokenRaw,
+                ],
             ];
         }
 
@@ -437,17 +445,39 @@ class QrVietGateway extends AbstractGateway
             'timeout' => 30,
         ]);
 
+        $this->tokenError = '';
+        $this->tokenRaw = [];
+
         if (is_wp_error($response)) {
+            $this->tokenError = sprintf('HTTP transport error: %s', $response->get_error_message());
+            $this->tokenRaw = ['wp_error' => $response->get_error_code()];
             return '';
         }
 
-        $data = json_decode(wp_remote_retrieve_body($response), true);
+        $httpCode = (int) wp_remote_retrieve_response_code($response);
+        $body = (string) wp_remote_retrieve_body($response);
+        $this->tokenRaw = ['http_status' => $httpCode];
+
+        $data = json_decode($body, true);
         if (!is_array($data)) {
+            $this->tokenError = sprintf('Invalid JSON response (HTTP %d): %s', $httpCode, substr($body, 0, 120));
             return '';
         }
+
+        $this->tokenRaw = [
+            'http_status' => $httpCode,
+            'response'    => $data,
+        ];
 
         $token = (string) ($data['access_token'] ?? ($data['data']['access_token'] ?? ''));
         if ($token === '') {
+            $message = (string) ($data['message'] ?? ($data['error'] ?? ($data['status'] ?? 'empty token')));
+            $this->tokenError = sprintf(
+                'Token response without access_token (HTTP %d): %s',
+                $httpCode,
+                $message !== '' ? $message : '(empty)
+'
+            );
             return '';
         }
 
