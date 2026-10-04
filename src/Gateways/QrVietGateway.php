@@ -154,11 +154,12 @@ class QrVietGateway extends AbstractGateway
         }
 
         $orderId = $this->buildOrderId($transactionId);
+        $transferContent = $this->buildContent($parameters);
 
         $body = [
             'bankCode'    => $this->credentials['bank_code'],
             'bankAccount' => $this->credentials['bank_account'],
-            'content'     => $this->buildContent($parameters),
+            'content'     => $transferContent,
             'userBankName'=> $this->credentials['account_name'],
             'qrType'      => self::QR_TYPE_DYNAMIC,
             'amount'      => $amount,
@@ -184,17 +185,19 @@ class QrVietGateway extends AbstractGateway
             ];
         }
 
-        $this->persistQrMeta($transactionId, $response);
+        // Persist QR meta kèm nội dung chuyển khoản (stable theo transaction)
+        $this->persistQrMeta($transactionId, $response, $transferContent);
 
         $qrLink = (string) ($response['qrLink'] ?? ($response['link'] ?? ''));
 
         return [
-            'status'        => 'qr',
-            'qrCode'        => (string) ($response['qrCode'] ?? ''),
-            'qrLink'        => $qrLink,
-            'qrImage'       => $qrLink !== '' ? $qrLink : (string) ($response['qrCode'] ?? ''),
-            'transactionId' => $orderId,
-            'raw'           => $response,
+            'status'          => 'qr',
+            'qrCode'          => (string) ($response['qrCode'] ?? ''),
+            'qrLink'          => $qrLink,
+            'qrImage'         => $qrLink !== '' ? $qrLink : (string) ($response['qrCode'] ?? ''),
+            'transactionId'   => $orderId,
+            'transferContent' => $transferContent,
+            'raw'             => $response,
         ];
     }
 
@@ -735,7 +738,7 @@ class QrVietGateway extends AbstractGateway
         }
     }
 
-    protected function persistQrMeta(string $transactionId, array $response): void
+    protected function persistQrMeta(string $transactionId, array $response, string $transferContent = ''): void
     {
         if (!is_numeric($transactionId) || (int) $transactionId <= 0) {
             return;
@@ -752,6 +755,10 @@ class QrVietGateway extends AbstractGateway
         }
         if (isset($response['qrCode'])) {
             $transaction->updateMeta('_qr_code', (string) $response['qrCode']);
+        }
+        // Lưu nội dung chuyển khoản ổn định theo transaction (không đổi theo session)
+        if ($transferContent !== '') {
+            $transaction->updateMeta('_transfer_content', $transferContent);
         }
     }
 
