@@ -78,6 +78,8 @@ class QrVietPaymentGatewayExtension extends AbstractExtension
         add_action('wp_enqueue_scripts', [$this, 'enqueueAssets']);
 
         add_filter('jankx/ecommerce/order_detail/after_payment_info', [$this, 'renderOrderDetailQr'], 20, 2);
+
+        add_filter('jankx/ecommerce/qr_payment/bank_info', [$this, 'provideQrBankInfo'], 10, 2);
     }
 
     public function registerGatewaySettings(): void
@@ -100,6 +102,35 @@ class QrVietPaymentGatewayExtension extends AbstractExtension
     public function registerGateways(): void
     {
         GatewayManager::getInstance()->register('qrviet', QrVietGateway::class);
+    }
+
+    /**
+     * Supply bank info to the checkout QR modal for the qrviet gateway.
+     *
+     * @param array  $info    Existing bank info (from other filters).
+     * @param string $gateway Gateway slug being processed.
+     * @return array
+     */
+    public function provideQrBankInfo(array $info, string $gateway): array
+    {
+        if ($gateway !== 'qrviet') {
+            return $info;
+        }
+
+        $config = $this->branchConfig();
+        $isTest = !empty($config['testMode']);
+        $prefix = $isTest ? 'sandbox' : 'production';
+
+        $bankCode    = (string) ($config["${prefix}_bank_code"] ?? '');
+        $bankAccount = (string) ($config["${prefix}_bank_account"] ?? '');
+        $accountName = (string) ($config["${prefix}_account_name"] ?? '');
+
+        return [
+            'bank_code'    => $bankCode,
+            'bank_name'    => $bankCode,
+            'bank_account' => $bankAccount,
+            'account_name' => $accountName,
+        ];
     }
 
     public function registerWebhookRoutes(): void
